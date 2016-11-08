@@ -1,0 +1,1121 @@
+module emu();
+
+reg [ 31 : 0 ] r [ 0 : 15 ] ;       // register file.including program counter r[15], link register r[14], stack pointerr[13] and 13 general purpose registers r[0] : r[12]
+reg [ 31 : 0 ] memory [ 0 : 1023 ] ;//internal memory;
+reg N;                              //Negative flag
+reg Z;                              //Zero flag
+reg C;                              //Carry flag
+reg V;                              //Overflow flag
+
+reg [ 32 : 0 ] tmp1;               // extra bit temporary register in case carry flag needs to be set
+reg [ 31 : 0 ] tmp;                //temporary register 
+integer tempInt;
+reg clock;
+integer shifter;                    //
+
+integer p; // indicates position in the instruction word - alternates between 15 and 31
+integer alt; // alternating variable for the position indicator ( 0 / 1 )
+integer i;
+
+integer j;
+
+
+//------------------------------------------------------------------------------
+
+
+initial begin                   // initialise emulator, e.g., memory content
+    C=0;
+    N=0;
+    Z=0;
+    V=0;
+    r[15] = 4;                  // initialising the PC
+
+    clock = 0;
+
+    $readmemh("conditional.emu", memory);
+
+    SVC(101);
+
+    $display("-------------");
+
+end
+
+
+//SYSTEM CLOCK - performs a fetch-decode-execute cycle
+
+
+
+always #1 clock = ~clock ;   // simulate the clock
+
+always @ ( posedge clock )
+begin
+    i = (r[15] - 4)/4;
+
+    alt = ((r[15] - 4)/2)%2;
+    p = (alt+1)*15 + alt;
+
+    $display("Executing instruction @ %h: '%b'", r[15]-4, memory[i][p-:16]);
+
+    EXECUTE(memory[i][p-:16]);
+    
+    DECODE(memory[i][p-:16]);
+    $display("pc=%h, Z=%b, N =%b, C=%b, V=%b", r[15], Z, N, C, V);
+    SVC(00010000);
+    $display("");
+
+    r[15] = r[15] + 2;
+    
+
+
+end
+
+
+//------------------------------------------------------------------------------
+
+
+// SVC task
+
+integer v;
+
+task SVC;           //DF10
+
+input [7:0] im8;
+
+begin
+
+    if ( im8 < 8 )
+        $display("r%d=%h", im8, r[im8] );
+    if ( im8 == 16 )
+    begin
+
+        $display(" r0=%h,   r1=%h,   r2=%h,   r3=%h", r[0], r[1], r[2], r[3]);
+        $display(" r4=%h,   r5=%h,   r6=%h,   r7=%h", r[4], r[5], r[6], r[7]);
+        $display(" r8=%h,   r9=%h,  r10=%h,  r11=%h", r[8], r[9], r[10],r[11]);
+        $display("r12=%h,  r13=%h,  r14=%h,  r15=%h", r[12],r[13],r[15],r[15]);
+        $display("");
+
+    end
+    if ( im8 == 100 )
+    begin
+        $display("Emulation has stopped due to SVC 100!");
+        $finish;
+    end
+    if ( im8 == 101 )
+    begin
+        for (v=0; v<1024; v=v+1)
+            $display("%h:  %h", v*4, memory[v]);
+    end
+
+
+end
+endtask
+
+
+
+// DECODE CYCLE - used by SVC
+
+task DECODE;
+
+input [15:0] instin;
+
+begin
+
+    if (instin[15:11] == 5'b00110)
+        $display("Decoded instruction: ADDI with rdn=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15:9] == 7'b0001100)
+        $display("Decoded instruction: ADDR with rn=%d, rm=%d, rd=%d", instin[8:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:11] == 5'b10101)
+        $display("Decoded instruction: ADDSPI with rdn=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15:7] == 9'b101100000)
+         $display("Decoded instruction: INCSP with imm7=%d", instin[6:0]);
+
+    else if (instin[15:11] == 5'b10100)
+        $display("Decoded instruction: ADDPCI with rdn=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15:11] == 5'b00111)
+        $display("Decoded instruction: SUBI with rdn=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15:9] == 7'b0001101)
+        $display("Decoded instruction: SUBR with rn=%d, rm=%d, rd=%d", instin[8:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:7] == 9'b101100001)
+        $display("Decoded instruction: DECSP with imm7=%d", instin[6:0]);
+
+    else if (instin[15:6] == 10'b0100001101)
+        $display("Decoded instruction: MULR with rn=%d, rdn=%d", instin[5:3], instin[2:0]);
+
+
+    else if (instin[15:6] == 10'b0100000000)
+        $display("Decoded instruction: ANDR with rn=%d, rdn=%d", instin[5:3], instin[2:0]);
+
+    else if (instin[15:6] == 10'b0100001100)
+        $display("Decoded instruction: ORR with rn=%d, rdn=%d", instin[5:3], instin[2:0]);
+
+    else if (instin[15:6] == 10'b0100000001)
+        $display("Decoded instruction: EORR with rn=%d, rdn=%d", instin[5:3], instin[2:0]);
+
+    else if (instin[15:6] == 10'b0100001001)
+        $display("Decoded instruction: NEGR with rn=%d, rd=%d", instin[5:3], instin[2:0]);
+
+
+    else if (instin[15:11] == 5'b00000)
+        $display("Decoded instruction: LSLI with imm5=%d, rm=%d, rd=%d", instin[10:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:6] == 10'b0100000010)
+        $display("Decoded instruction: LSLR with rn=%d, rdn=%d", instin[5:3], instin[2:0]);
+
+    else if (instin[15:11] == 5'b00001)
+        $display("Decoded instruction: LSRI with imm5=%d, rm=%d, rd=%d", instin[10:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:6] == 10'b0100000011)
+        $display("Decoded instruction: LSRR with rn=%d, rdn=%d", instin[5:3], instin[2:0]);
+
+    else if (instin[15:11] == 5'b00010)
+        $display("Decoded instruction: ASRI with imm5=%d, rm=%d, rd=%d", instin[10:6], instin[5:3], instin[2:0]);
+
+
+    else if (instin[15:11] == 5'b00100)
+        $display("Decoded instruction: MOVI with rdn=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15:6] == 10'b0100001111)
+        $display("Decoded instruction: MOVNR with rm=%d, rd=%d", instin[5:3], instin[2:0]);
+
+    else if (instin[15:6] == 13'b0100011010)
+        $display("Decoded instruction: MOVRSP with rm=%d", instin[5:3]);
+
+
+    else if (instin[15:11] == 5'b01101)
+        $display("Decoded instruction: LDRI with imm5=%d, rm=%d, rt=%d", instin[10:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:9] == 7'b0101100)
+        $display("Decoded instruction: LDRR with rn=%d, rm=%d, rt=%d", instin[8:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:11] == 5'b10011)
+        $display("Decoded instruction: LDRSPI with rt=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15:11] == 5'b01001)
+        $display("Decoded instruction: LDRPCI with rd=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin[15-:5] == 5'b01100)
+          $display("Decoded instruction: STRI with imm5=%d, rm=%d, rt=%d", instin[10:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:9] == 7'b0101000)
+        $display("Decoded instruction: STRR with rn=%d, rm=%d, rt=%d", instin[8:6], instin[5:3], instin[2:0]);
+
+    else if (instin[15:11] == 5'b10010)
+        $display("Decoded instruction: STRSPI with rt=%d, imm8=%d", instin[10:8], instin[7:0]);
+
+    else if (instin == 16'b1011010100000000)
+        $display("Decoded instruction: PUSH");
+
+    else if (instin == 16'b1011110100000000)
+        $display("Decoded instruction: POP");
+
+
+    else if (instin[15:11] == 5'b11100)
+        $display("Decoded instruction: BU with imm11=%d", instin[10:0]);
+
+    else if (instin[15:12] == 4'b1101)
+    begin
+        if(instin[11:8] == 4'b0000 )
+            $display("Decoded instruction: BEQ with im8=%d", instin[7:0]);
+
+        else if(instin[11:8] == 4'b0001)
+            $display("Decoded instruction: BNE with im8=%d", instin[7:0]);
+
+        else if(instin[11:8] == 4'b1100 )
+            $display("Decoded instruction: BGT with im8=%d", instin[7:0]);
+
+        else if(instin[11:8] == 4'b1011 )
+            $display("Decoded instruction: BLT with im8=%d", instin[7:0]);
+
+        else if(instin[11:8] == 4'b1111 )
+            $display("Decoded instruction: SVC with im8=%d", instin[7:0]);
+    end
+
+    else if (instin[15:11] == 5'b11110 )
+        $display("Decoded instruction: BL1 with im11=%d", instin[10:0]);
+
+    else if (instin[15:11] == 5'b11111 )
+        $display("Decoded instruction: BL2 with im11=%d", instin[10:0]);
+
+    else if (instin[15:6] == 10'b0100011100 )
+        $display("Decoded instruction: BR with rm=%d", instin[5:3]);
+
+end
+endtask
+
+
+
+// EXECUTE CYCLE
+
+task EXECUTE;
+
+input [15:0] instin;
+
+begin
+
+    if (instin[15:11] == 5'b00110)
+        ADDI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:9] == 7'b0001100)
+        ADDR( instin[8:6], instin[5:3], instin[2:0] );
+
+    else if (instin[15:11] == 5'b10101)
+        ADDSPI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:7] == 9'b101100000)
+        INCSP( instin[6:0] );
+
+    else if (instin[15:11] == 5'b10100)
+        ADDPCI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:11] == 5'b00111)
+        SUBI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:9] == 7'b0001101)
+        SUBR( instin[8:6], instin[5:3], instin[2:0] );
+
+    else if (instin[15:7] == 9'b101100001)
+        DECSP( instin[6:0] );
+
+    else if (instin[15:6] == 10'b0100001101)
+        MULR( instin[5:3], instin[2:0] );
+
+
+    else if (instin[15:6] == 10'b0100000000)
+        ANDR( instin[5:3], instin[3:0] );
+
+    else if (instin[15:6] == 10'b0100001100)
+        ORR( instin[5:3], instin[3:0] );
+
+    else if (instin[15:6] == 10'b0100000001)
+        EORR( instin[5:3], instin[3:0] );
+
+    else if (instin[15:6] == 10'b0100001001)
+        NEGR( instin[5:3], instin[3:0] );
+
+
+
+    else if (instin[15:11] == 5'b00000)
+        LSLI(instin[10:6],instin[5:3],instin[2:0]);
+
+
+    else if (instin[15:6] == 10'b0100000010)
+        LSLR( instin[5:3], instin[2:0] );
+
+    else if (instin[15:11] == 5'b00001)
+        LSRI( instin[10:6], instin[5:3], instin[2:0] );
+
+    else if (instin[15:6] == 10'b0100000011)
+        LSRR( instin[5:3], instin[3:0] );
+
+    else if (instin[15:11] == 5'b00010)
+        ASRI( instin[10:6], instin[5:3], instin[3:0] );
+
+
+    else if (instin[15:11] == 5'b00100)
+        MOVI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:6] == 10'b0100001111)
+        MOVNR( instin[5:3], instin[3:0] );
+
+    else if (instin[15:6] == 13'b0100011010)
+        MOVRSP( instin[5:3] );
+
+
+    else if (instin[15:11] == 5'b01101)
+        LDRI( instin[10:6], instin[5:3], instin[3:0] );
+
+    else if (instin[15:9] == 7'b0101100)
+        LDRR( instin[8:6], instin[5:3], instin[3:0] );
+
+    else if (instin[15:11] == 5'b10011)
+        LDRSPI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:11] == 5'b01001)
+        LDRPCI( instin[10:8], instin[7:0] );
+
+    else if (instin[15:11] == 5'b01100)
+        STRI( instin[10:6], instin[5:3], instin[3:0] );
+
+    else if (instin[15:9] == 7'b0101000)
+        STRR( instin[8:6], instin[5:3], instin[3:0] );
+
+    else if (instin[15:11] == 5'b10010)
+        STRSPI( instin[10:8], instin[7:0] );
+
+    else if (instin == 16'b1011010100000000)
+        PUSH();
+
+    else if (instin == 16'b1011110100000000)
+        POP();
+
+
+    else if (instin[15:11] == 5'b11100)
+        BU( instin[10:0] );
+
+    else if (instin[15-:4] == 4'b1101)
+    begin
+        if(instin[11:8] == 4'b0000 )
+            BEQ( instin[7:0]);
+
+        else if(instin[11:8] == 4'b0001 )
+            BNE( instin[7:0]);
+
+        else if(instin[11:8] == 4'b1100 )
+            BGT( instin[7:0]);
+
+        else if(instin[11:8] == 4'b1001 )
+            BLT( instin[7:0]);
+
+        else if(instin[11:8] == 4'b1111 )
+            SVC( instin[7:0]);
+    end
+
+    else if (instin[15:11] == 5'b11110 )
+        BL1( instin[10:0] );
+
+    else if (instin[15:11] == 5'b11111 )
+        BL2( instin[10:0]);
+
+    else if (instin[15:6] == 10'b0100011100 )
+        BR( instin[5:3]);
+    else 
+    $display("Bad Instruction");
+
+end
+
+endtask
+
+
+
+// INSTRUCTION IMPs :
+
+task ADDI;          //3001*
+
+input [2:0] rdn;
+input [7:0] im8;
+
+begin 
+
+    tmp1 = r[rdn] + im8;
+    C = tmp1[32];
+    V=0;
+    if (r[rdn][31]==0 && tmp1[31]==1)
+        V=1;
+
+    r[rdn] = r[rdn] + im8;
+
+end
+endtask
+
+
+
+task ADDR;          //18D1*
+
+input [2:0] rn;
+input [2:0] rm;
+input [2:0] rd;
+
+begin 
+
+    tmp1 = r[rn] + r[rm];
+    C = tmp1[32];
+    
+    V=0;
+    if (r[rn][31]==1 && r[rm][31]==1 && tmp1[31]==0)
+        V=1;
+    if (r[rn][31]==0 && r[rm][31]==0 && tmp1[31]==1)
+        V=1;
+
+    r[rd] = r[rn] + r[rm];
+
+end
+endtask
+
+
+
+task ADDSPI;        //AA05*
+
+input [2:0] rdn;
+input [7:0] im8;
+
+begin
+
+    tmp = im8 << 2;
+    r[rdn] = r[13] + tmp;
+
+end
+endtask
+
+
+
+task INCSP;         //B002*
+
+input [6:0] im7;
+
+begin 
+
+    tmp = im7 << 2;
+    r[13] = r[13] + tmp;
+
+end
+endtask
+
+
+
+task ADDPCI;        //A301*
+
+input [2:0] rd;
+input [7:0] im8;
+
+begin
+
+    r[rd] = r[15] + (im8*4);
+
+end
+endtask
+
+
+
+task SUBI;          //3D02*
+
+input [2:0] rdn;
+input [7:0] im8;
+
+begin
+
+    tmp1 = r[rdn] - im8;
+    C = 0;
+    if ( tmp1[32] == 1 && tmp1[31] == 0 )
+        C = 1;
+
+    V = 0;
+    if ( r[rdn][31] ==1 && tmp1[32] == 0 )
+        V = 1;
+
+    r[rdn] = r[rdn] - im8;
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task SUBR;          //1B5A*
+
+input [2:0] rm;
+input [2:0] rn;
+input [2:0] rd;
+
+begin
+
+    tmp1 = r[rn] - r[rm];
+    C = 0;
+    if ( tmp1[32] == 1 && tmp1[31] == 0 )
+        C = 1;
+
+    V = 0;
+    if (tmp1[32] == 0 && r[rm][31] == 1 && r[rn][31] == 0)
+        V = 1;
+
+    r[rd] =  r[rn] - r[rm];
+
+    N = r[rd][31];
+    Z = 0;
+    if ( r[rd] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task DECSP;         //B082*
+
+input [6:0] im7;
+
+begin
+
+    r[13] = r[13] - (4*im7);
+
+end
+endtask
+
+
+
+task MULR;          //435A*
+
+input [2:0] rm;
+input [2:0] rdn;
+
+begin
+
+    r[rdn] = r[rdn] * r[rm];
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task ANDR;          //400B*
+
+input [2:0] rdn;
+input [2:0] rm;
+
+begin
+
+    r[rdn] = r[rdn] && r[rm];
+
+    //C remains unchanged ref:p.234->Shift_C with amount 0 => C_out = C_in
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task ORR;           //431A*
+
+input [2:0] rdn;
+input [2:0] rm;
+
+begin
+
+    r[rdn] = r[rdn] | r[rm];
+
+    //C remains unchanged ref:p.234->Shift_C with amount 0 => C_out = C_i
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task EORR;          //4063*
+
+input [2:0] rm;
+input [2:0] rdn;
+
+begin
+
+    r[rdn] = r[rdn] ^ r[rm];
+
+    //C remains unchanged ref:p.234->Shift_C with amount 0 => C_out = C_i
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0 )
+        Z = 1;
+
+end
+endtask
+
+
+
+task NEGR;          //4248**
+
+input [2:0] rdn;
+input [2:0] rm;
+
+begin
+
+    tmp = ~r[rm] + 32'b1;
+    tmp = ~r[rm] + 32'b1;
+    
+    C = 0;
+    if ( tmp1[32] == 1 && tmp1[31] == 0)
+        C = 1;
+
+    V = 0;
+    if ( tmp[31] == 0 && r[rm][31] == 0)
+        V = 1;
+    if ( tmp[31] == 1 && r[rm][31] == 1)
+        V = 1;
+
+    r[rdn] = 0 - r[rm];
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0 )
+        Z = 1;
+
+end
+endtask
+
+
+
+task LSLI;          //0050*
+
+input [2:0] rd;
+input [2:0] rn;
+input [4:0] im5;
+
+begin
+
+    shifter = im5;
+    r[rd] = r[rn] << shifter;
+    if (shifter != 0)
+        C = r[rn][32-shifter];
+
+    N = r[rd][31];
+    Z = 0;
+    if ( r[rd] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task LSLR;          //4090*
+
+input [2:0] rdn;
+input [2:0] rn;
+
+begin
+
+    shifter = r[rn][7:0];
+    r[rdn] = r[rdn] << shifter;
+    if (shifter != 0)
+        C = r[rn][32-shifter];
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task LSRI;          //0890*
+
+input [2:0] rd;
+input [2:0] rn;
+input [4:0] im5;
+
+begin
+
+    shifter = im5;
+    r[rd] = r[rn] >> shifter;
+    if (shifter != 0)
+        C = r[rn][32-shifter];
+
+    N = r[rd][31];
+    Z = 0;
+    if ( r[rd] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task LSRR;          //40D0*
+
+input [2:0] rdn;
+input [2:0] rn;
+
+begin
+
+    shifter = r[rn][7:0];
+    r[rdn] = r[rdn] >> shifter;
+    if (shifter != 0)
+        C = r[rn][32-shifter];
+
+    N = r[rdn][31];
+    Z = 0;
+    if ( r[rdn] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task ASRI;          //1090*
+
+input [4:0] im5;
+input [2:0] rn;
+input [2:0] rd;
+
+begin
+
+    shifter = im5;
+    r[rd] =  r[rn] >>> shifter;
+    if (shifter != 0)
+        C = r[rn][32-shifter];
+
+    N = r[rd][31];
+    Z = 0;
+    if ( r[rd] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task MOVI;          //2214*
+
+input [2:0] rd;
+input [7:0] im8;
+
+begin
+
+    r[rd] = im8;
+
+    N = r[rd][31];
+    Z = 0;
+    if ( r[rd] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task MOVNR;         //43D0*
+
+input [2:0] rd;
+input [2:0] rm;
+
+begin
+
+    r[rd] = ~ r[rm];
+
+    N = r[rd][31];
+    Z = 0;
+    if ( r[rd] == 32'b0)
+        Z = 1;
+
+end
+endtask
+
+
+
+task MOVRSP;        //4685*
+
+input [2:0] rm;
+
+begin
+
+    r[13] = r[rm];
+
+end
+endtask
+
+
+
+task LDRI;           //6850*
+
+input [4:0] im5;
+input [2:0] rn;
+input [2:0] rt;
+
+begin
+
+    tmp = im5;
+    tmp = tmp << 2;
+    tmp = tmp + r[rn];
+    tmp = tmp >> 2;
+    tempInt = tmp;
+    r[rt] = memory[tempInt];
+
+end
+endtask
+
+
+
+task LDRR;           //5888*
+
+input [2:0] rn;
+input [2:0] rm;
+input [2:0] rt;
+
+begin
+
+    tmp = r[rm] + r[rn];
+    tempInt = tmp;
+    r[rt] = memory[tempInt];
+
+end
+endtask
+
+
+
+task LDRSPI;           //9801*
+
+input [2:0] rt;
+input [7:0] im8;
+
+begin
+
+    tmp = im8;
+    tmp = tmp << 2;
+    tmp = tmp + r[13];
+    tmp = tmp >> 2;
+    tempInt = tmp;
+    r[rt] = memory[tempInt];
+
+end
+endtask
+
+
+
+task LDRPCI;           //4801*
+
+input [2:0] rt;
+input [7:0] im8;
+
+begin
+    
+    tmp = im8;
+    tmp = tmp << 2;
+    tmp = tmp + r[15];
+    tmp = tmp >> 2;
+    tempInt = tmp;
+    r[rt] = memory[tempInt];
+
+end
+endtask
+
+
+
+task STRI;           //60D8*
+
+input [4:0] im5;
+input [2:0] rn;
+input [2:0] rt;
+
+begin
+
+    tmp = im5;
+    tmp = tmp << 2;
+    tmp = tmp + r[rn];
+    tmp = tmp >> 2;
+    tempInt = tmp;
+    memory[tempInt] = r[rt];
+
+end
+endtask
+
+
+
+task STRR;           //50D0*
+
+input [2:0] rn;
+input [2:0] rm;
+input [2:0] rt;
+
+begin
+
+    tmp = r[rm] + r[rn];
+    tempInt = tmp;
+    memory[tempInt] = r[rt];
+
+end
+endtask
+
+
+
+task STRSPI;           //9208*
+
+input [2:0] rt;
+input [7:0] im8;
+
+begin
+
+    tmp = im8;
+    tmp = tmp << 2;
+    tmp = tmp + r[13];
+    tmp = tmp >> 2;
+    tempInt = tmp;
+    memory[tempInt] = r[rt];
+
+end
+endtask
+
+
+
+task PUSH;           //B500*
+
+begin
+
+    tempInt = r[13] ;
+    memory[tempInt] = r[14];
+    r[13] = r[13] + 32'b1;
+
+end
+endtask
+
+
+
+
+task POP;           //BD00*
+
+begin
+
+    r[13] = r[13] - 32'b1;
+    tempInt = r[13];
+    r[15] = memory[tempInt]; 
+
+end
+endtask
+
+
+
+task BU;           //E008*
+
+input [10:0] im11;
+reg signed [10:0] stp;
+
+begin
+
+    stp = im11;
+
+    r[15] = (r[15] + (stp<<1))+2;
+
+end
+endtask
+
+
+
+task BEQ;           //D007
+
+input [7:0] im8;
+reg signed [7:0] stp;
+
+begin
+    
+    stp = im8;
+
+    if ( Z ==1 )
+        r[15] =(r[15] + (stp<<1))+2;
+
+end
+endtask
+
+
+
+task BNE;           //D106
+
+input [7:0] im8;
+reg signed [7:0] stp;
+
+begin
+    
+    stp = im8;
+
+    if ( Z == 0 )
+        r[15] =(r[15] + (stp<<1))+2;
+
+end
+endtask
+
+
+
+task BGT;           //DA05
+
+input [7:0] im8;
+reg signed [7:0] stp;
+
+begin
+    
+    stp = im8;
+
+    if ( Z == 0 && N == V)
+        r[15] =(r[15] + (stp<<1))+2;
+
+
+end
+endtask
+
+
+
+task BLT;           //DB04
+
+input [7:0] im8;
+reg signed [7:0] stp;
+
+begin
+    
+    stp = im8;
+
+    if ( N != V )
+        r[15] =(r[15] + (stp<<1))+2;
+
+end
+endtask
+
+
+
+task BL1;           //F000
+
+input [10:0] im11;
+
+begin
+
+    tmp[11:0] = 12'b0;
+    tmp[22:12] = im11;
+    tmp[31:23] = {9{tmp[22]}};
+  
+    r[14] = r[15] + 2;
+    r[15] = tmp;
+
+end
+endtask
+
+
+
+task BL2;           //F803*
+
+input [10:0] im11;
+
+begin
+
+    tmp[11:1] = im11;
+    tmp[0] = 0;
+    tmp[31:12] = 20'b0;
+    r[15] = r[15] + tmp;
+
+end
+endtask
+
+
+
+task BR;           //4770
+
+input [2:0] rm;
+
+begin
+
+    r[15] = r[rm];
+
+end
+endtask
+
+endmodule

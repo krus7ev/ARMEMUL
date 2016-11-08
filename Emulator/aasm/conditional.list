@@ -1,0 +1,38 @@
+00000000:             ; ; COMS12600 emulator conditionals test file
+00000000:             ; ; Simon Hollis 2011-13 (C) (simon@cs.bris.ac.uk)
+00000000:             ; ; Solution pattern should be 16, 8, 42, 0
+00000000:             ; 
+00000000:             ;         THUMB
+00000000:             ; 
+00000000:             ; Start
+00000000: 2010        ;         MOVI r0, #16
+00000002: DF00        ;         SVC 0
+00000004: 2108        ;         MOVI r1, #8
+00000006: DF01        ;         SVC 1
+00000008: 1A40        ;         SUBR r0, r0, r1
+0000000A: DB01        ;         BLT Wrong  ; this branch shouldn't be taken
+0000000C: DC03        ;         BGT Right  ; this branch should be taken
+0000000E: E7FF        ;         BU Wrong ; this branch shouldn't be taken
+00000010:             ; 
+00000010:             ; Wrong
+00000010: 20AF        ;         MOVI r0, #0x00af
+00000012: DF00        ;         SVC 0  ; print out value
+00000014: E008        ;         BU Finish
+00000016:             ; Right
+00000016: 202A        ;         MOVI r0, #42
+00000018: DF00        ;         SVC 0 ; print out value
+0000001A:             ; 
+0000001A:             ;         ; next test
+0000001A: 382A        ;         SUBI r0, #42
+0000001C: DF00        ;         SVC 0
+0000001E: D1F7        ;         BNE Wrong ; should not be taken
+00000020: DCF6        ;         BGT Wrong ; should not be taken
+00000022: DBF5        ;         BLT Wrong ; should not be taken
+00000024: D000        ;         BEQ Finish ; should be taken --- equal to zero
+00000026: E7F3        ;         BU Wrong ; should not be taken
+00000028:             ; Finish
+00000028: DF10        ;         SVC 16 ; print all registers
+0000002A: DF64        ;         SVC 100 ; stop emulator
+0000002C:             ;         
+0000002C:             ;         END
+0000002C:             ; 

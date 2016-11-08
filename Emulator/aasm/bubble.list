@@ -1,0 +1,101 @@
+00000000:             ; ; ***************************************
+00000000:             ; ; *** COMS12600 Bubblesort Assignment ***
+00000000:             ; ; *** (C) Simon Hollis, 2011-13       ***
+00000000:             ; ; *** simon@cs.bris.ac.uk             ***
+00000000:             ; ; ***************************************
+00000000:             ;         
+00000000:             ;         THUMB
+00000000:             ;         
+00000000:             ; Start
+00000000: 2001        ;        MOVI r0, #1 
+00000002: 0300        ;        LSLI r0, r0, #12 ; load largest memory address
+00000004: 4685        ;        MOVRSP sp, r0 ; set stack pointer to largest value
+00000006:             ;        
+00000006: E00F        ;        BU StartSort  ; start the work
+00000008:             ; 
+00000008:             ; 
+00000008:             ; ; *** The data values to be sorted
+00000008:             ; ; *** DCD is an assembler directive to insert the given constant in memory
+00000008:             ; DataStart
+00000008: FFFFFFFC    ;         DCD -4
+0000000C: 00000002    ;         DCD 2
+00000010: 00000005    ;         DCD 5
+00000014: 0000038E    ;         DCD 910
+00000018: 0000000A    ;         DCD 10
+0000001C: FFFFFFF4    ;         DCD -12
+00000020: 0000005B    ;         DCD 91
+00000024: 0000000B    ;         DCD 11
+00000028:             ; DataEnd
+00000028:             ; 
+00000028:             ; StartSort
+00000028: 2108        ;         MOVI r1, #DataStart     ; load start address for the data values
+0000002A: 2200        ;         MOVI r2, #0             ; array index being sorted
+0000002C: 2728        ;         MOVI r7, #DataEnd       ; contains the value of the last unsorted element
+0000002E: 2300        ;         MOVI r3, #0             ; unfinished = 0
+00000030:             ; 
+00000030: E7FF        ;         BU FetchCompare                 ;
+00000032:             ; 
+00000032:             ; FetchCompare
+00000032:             ;         
+00000032: 588C        ;         LDRR r4, [r1, r2]      ; get first data item
+00000034: 3204        ;         ADDI r2, #4                                                                     
+00000036: 588D        ;         LDRR r5, [r1, r2]      ; get second data item
+00000038:             ; 
+00000038: 1B2E        ;         SUBR r6, r5, r4        ; get the difference between the items values
+0000003A: DC03        ;         BGT  Swap              ; jump to swap if r4 > r5
+0000003C:             ;         
+0000003C: 1857        ;         ADDR r7, r2, r1
+0000003E: 3F28        ;         SUBI r7, #DataEnd      ; check if second element matches the value of the last
+00000040: D009        ;         BEQ ArrayEnd           ; go to EndSort if second
+00000042:             ; 
+00000042: E7F6        ;         BU   FetchCompare      ; compare second item with the next one                         
+                      ;                                 
+00000044:             ; 
+00000044:             ; Swap
+00000044:             ; 
+00000044: 2301        ;         MOVI r3, #1
+00000046:             ; 
+00000046: 508C        ;         STRR r4, [r1, r2]                                                                      
+                      ;                 
+00000048: 3A04        ;         SUBI r2, #4
+0000004A: 508D        ;         STRR r5, [r1, r2]
+0000004C: 3204        ;         ADDI r2, #4
+0000004E:             ; 
+0000004E: 1857        ;         ADDR r7, r2, r1
+00000050: 3F28        ;         SUBI r7, #DataEnd
+00000052: D000        ;         BEQ ArrayEnd
+00000054:             ;         
+00000054: E7ED        ;         BU FetchCompare 
+00000056:             ; 
+00000056:             ; ArrayEnd
+00000056:             ;         
+00000056: 3B01        ;         SUBI r3, #1
+00000058: D101        ;         BNE EndSort
+0000005A:             ; 
+0000005A: 2200        ;         MOVI r2, #0
+0000005C: E7E4        ;         BU StartSort
+0000005E:             ;         
+0000005E:             ; EndSort
+0000005E: E005        ;         BU Stop
+00000060:             ; 
+00000060:             ;         
+00000060:             ;         ; **** One way to use the SVCs 
+00000060:             ;         ; **** (as sub-routine calls to the SVCs)
+00000060:             ;         
+00000060:             ; DumpRegs 
+00000060: B500        ;     PUSH {lr} ; save return address onto stack
+00000062: DF10        ;     SVC 16 ; debug command to dump all registers
+00000064: BD00        ;     POP {pc} ; return to calling sub-routine
+00000066:             ;         
+00000066:             ; PrintR0
+00000066: B500        ;     PUSH {lr} ; save return address onto stack
+00000068: DF00        ;     SVC 0 ; debug command to printR0
+0000006A: BD00        ;     POP {pc} ; return to calling sub-routine
+0000006C:             ;         
+0000006C:             ; Stop
+0000006C: F7FF  FFF8  ;         BL DumpRegs ; print all the registers
+00000070: DF64        ;         SVC 100 ; stop the emulator
+00000072:             ;         
+00000072:             ;         
+00000072:             ;         END
+00000072:             ; 

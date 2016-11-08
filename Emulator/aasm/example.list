@@ -1,0 +1,74 @@
+00000000:             ;     ; Example test file of all COMS12600 assignemnt instructions
+00000000:             ;     ; with their assembly syntax
+00000000:             ;     ; Note: this program is not supposed to make sense ---
+00000000:             ;     ; it is simply an example of how to use each instruction
+00000000:             ;     ; 
+00000000:             ;     ; Simon Hollis (simon@cs.bris.ac.uk)
+00000000:             ;     ; 01 March 2013
+00000000:             ;  
+00000000:             ;     THUMB
+00000000:             ; 
+20000000:             ;     ORIGIN 0x20000000
+20000000:             ; 
+20000000: 3001        ;     ADDI r0, #1
+20000002: 18D1        ;     ADDR r1, r2, r3
+20000004: AA05        ;     ADDSPI r2, sp, #20
+20000006: B002        ;     INCSP sp, #8
+20000008:             ; 
+20000008: A301        ;     ADDPCI r3, pc, #4
+2000000A: 3D02        ;     SUBI r5, #2
+2000000C: 1B5A        ;     SUBR r2, r3, r5
+2000000E: B082        ;     DECSP sp, #8
+20000010: 435A        ;     MULR r2, r3
+20000012:             ; 
+20000012: 400B        ;     ANDR r3, r1
+20000014: 431A        ;     ORR r2, r3
+20000016: 4063        ;     EORR r3, r4
+20000018: 4248        ;     NEGR r0, r1
+2000001A:             ; 
+2000001A: 0050        ;     LSLI r0, r2, #1
+2000001C: 4090        ;     LSLR r0, r2
+2000001E: 0890        ;     LSRI r0, r2, #2
+20000020: 40D0        ;     LSRR r0, r2
+20000022: 1090        ;     ASRI r0, r2, #2
+20000024:             ; 
+20000024: 2214        ;     MOVI r2, #20
+20000026: 43D0        ;     MOVNR r0, r2
+20000028: 4685        ;     MOVRSP sp, r0
+2000002A:             ; 
+2000002A: 6850        ;     LDRI r0, [r2, #4]
+2000002C: 5888        ;     LDRR r0, [r1, r2]
+2000002E: 9801        ;     LDRSPI r0, [sp,  #4 ]
+20000030: 4801        ;     LDRPCI r0, [pc, #4]
+20000032: 60D8        ;     STRI r0, [r3, #12]
+20000034: 50D0        ;     STRR r0, [r2, r3]
+20000036: 9208        ;     STRSPI r2, [sp, #32]
+20000038: B500        ;     PUSH {lr}
+2000003A: BD00        ;     POP  {pc}
+2000003C:             ; 
+2000003C: E008        ;     BU Foobar
+2000003E: D007        ;     BEQ Foobar
+20000040: D106        ;     BNE Foobar
+20000042: DC05        ;     BGT Foobar
+20000044: DB04        ;     BLT Foobar
+20000046: F000  F803  ;     BL Foobar
+2000004A: 4770        ;     BR lr
+2000004C: DF10        ;     SVC 0x10
+2000004E:             ; 
+2000004E:             ; 
+2000004E:             ;     ; test of PC-relative loads. The target data
+2000004E:             ;     ; must be aligned on a 32-bit word boundary
+2000004E: 4803        ;     LDRI r0, =Food
+20000050:             ; Foobar
+20000050: 4802        ;     LDRI r0, =Food
+20000052: 4802        ;     LDRI r0, =Food
+20000054: 4801        ;     LDRI r0, =Food
+20000056: 4801        ;     LDRI r0, =Food
+20000058:             ; 
+20000058: 58D4        ;     LDRR r4, [r2, r3]
+2000005A: 5953        ;     LDRR r3, [r2, r5]
+2000005C:             ; Food
+2000005C: 00BAD00D    ;     DCD 0xbad00d
+20000060:             ;     
+20000060:             ; 
+20000060:             ; 

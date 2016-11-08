@@ -1,0 +1,30 @@
+#! /bin/bash
+
+# (C) Simon Hollis, 15th March 2011
+# Script to run armasm and rearrange the output to produce a simple
+# linear listing of 
+# ADDR ENCODED_INSTRUCTION
+#
+# For use with COMS12200 emulator coursework
+
+# invoke with the filename you wish to compile, minus any .s suffix
+
+echo -e "Please ensure you have not already added a '.s' suffix to the command line!\nCompiling $1.s...\n"
+export ARMLMD_LICENSE_FILE=5290@frost.cs.bris.ac.uk
+/home/staff/simon/COMS12200/emulator/armasm --arm --cpu ARM7TDMI --list=$1.list $1.s
+
+# fix a bug with the last line of the text not listing properly
+
+cat $1.list | sed 's/^[ ]*//' | cut -d ' ' -f 1,2,3 | grep -E "^[0-9A-F]+ [0-9A-F]+" | tac |  head -n1 >$1.tmpa
+
+cat $1.list | sed 's/^[ ]*//' | cut -d ' ' -f 1,2,3 | grep -v Command | tac | head -n1  >  $1.tmpb
+
+paste $1.tmpa $1.tmpb | cut -d ' ' -f 2,3 | grep -E "^[0-9A-F]+ *[0-9A-F]+" > $1.tmpc
+
+cat $1.list | sed 's/^[ ]*//' | cut -d ' ' -f 2,3 | grep -E "^[0-9A-F]+ [0-9A-F]+" > $1.emu
+
+cat $1.tmpc >> $1.emu
+
+#rm $1.tmpa $1.tmpb $1.tmpc
+
+echo -e "\nDone. Please check $1.emu for your compiled file! You will also find more detailed debug in $1.list\n"

@@ -1,0 +1,28 @@
+00000000:             ; ; COMS12600 emulator ALU test file
+00000000:             ; ; Simon Hollis 2011-2013 (C) (simon@cs.bris.ac.uk)
+00000000:             ; ; Solution pattern should be 42, 43, 84, 168, 0 from r0
+00000000:             ; 
+00000000:             ;         THUMB   
+00000000:             ; Start
+00000000: 202A        ;         MOVI r0, #42
+00000002: 212A        ;         MOVI r1, #42
+00000004: DF00        ;         SVC 0 ; print that r0 is 42
+00000006: 3001        ;         ADDI r0, #1
+00000008: DF00        ;         SVC 0 ; print that r0 is 43
+0000000A: 3801        ;         SUBI r0, #1
+0000000C: 1848        ;         ADDR r0, r1
+0000000E: DF00        ;         SVC 0 ; print that r0 should be 84 
+00000010: 2202        ;         MOVI r2, #2
+00000012: 4350        ;         MULR r0, r2 ; result is 168
+00000014: DF00        ;         SVC 0 ; print r0
+00000016: 21A8        ;         MOVI r1, #168
+00000018: DF00        ;     SVC 0 ; print r0
+0000001A: 4048        ;         EORR r0, r1 ; r0 should equal zero
+0000001C: DF00        ;         SVC 0 ; print r0
+0000001E: DF10        ;         SVC 16  ; print out all the registers
+00000020:             ; 
+00000020:             ; Stop
+00000020: DF64        ;         SVC 100 ; stop the emulator
+00000022:             ; 
+00000022:             ;         END
+00000022:             ; 

@@ -1,0 +1,44 @@
+module emu() ;
+
+reg [ 31 : 0 ] r [ 0 : 15 ] ;       // register file.
+reg [ 31 : 0 ] memory [ 0 : 1023 ] ;// memory
+
+// other state and variable declarations
+
+// Fill in the instruction implementations here.
+// You can use 'tasks' and 'procedures here to
+// contain your code and allow re-use.
+// e.g.
+
+task movi ;
+
+input [2:0] rd ;
+input [7:0] imm8 ;
+
+begin
+
+// do the move operation
+
+end
+
+endtask
+
+
+
+initial begin           // initialise emulator, e.g., memory content
+
+$readmem("example.emu", memory);
+
+end
+
+always #1 clock = !clock ; // simulate the clock
+
+always @ ( posedge clock ) begin
+
+// perform a fetch-decode-execute cycle
+
+end
+
+endmodule
+
+// $display - prints to console

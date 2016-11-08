@@ -1,0 +1,31 @@
+00000000:             ; ; Control flow test program
+00000000:             ; ; COMS12600
+00000000:             ; ; Simon Hollis (simon@cs.bris.ac.uk)
+00000000:             ; ; March 2013
+00000000:             ; 
+00000000:             ;      THUMB
+00000000:             ; 
+00000000:             ; Start
+00000000: 2001        ;        MOVI r0, #1
+00000002: DF00        ;        SVC 0 ; print out r0
+00000004: E005        ;        BU Second ; jump down
+00000006:             ; 
+00000006:             ; Third
+00000006: 2003        ;       MOVI r0, #3
+00000008: DF00        ;       SVC 0  ; print out r0
+0000000A: E7FF        ;       BU Fourth  ; jump down
+0000000C:             ; 
+0000000C:             ; Fourth
+0000000C: 2004        ;       MOVI r0, #4
+0000000E: DF00        ;       SVC 0 ; print out r0
+00000010: E002        ;       BU Finish ; jump to end
+00000012:             ; 
+00000012:             ; Second
+00000012: 2002        ;       MOVI r0, #2
+00000014: DF00        ;       SVC 0 ; print out r0
+00000016: E7F6        ;       BU Third  ; jump up
+00000018:             ; 
+00000018:             ; Finish
+00000018: DF10        ;       SVC 16  ; print all registers
+0000001A: DF64        ;       SVC 100 ; stop emulator
+0000001C:             ; 
